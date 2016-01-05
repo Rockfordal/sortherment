@@ -9,21 +9,24 @@ import Data.Tuple
 import Data.Either
 import Data.Filter
 import Data.Foldable (fold)
+import Data.Int
 
 import qualified Thermite as T
-
 import qualified React as R
 import qualified React.DOM as R
 import qualified React.DOM.Props as RP
 
 import Components.Task
-
 import Unsafe.Coerce
+
+type NyTask = Tuple String String
 
 -- | An action for the full task list component
 data TaskListAction
   = NewTask String
+  -- = NewTask NyTask
   | SetEditText String
+  | SetEditQuantity String
   | SetFilter Filter
   | TaskAction Int TaskAction
 
@@ -36,15 +39,21 @@ _TaskAction = prism (uncurry TaskAction) \ta ->
 
 -- | The state for the full task list component is a list of tasks
 type TaskListState =
-  { tasks       :: List Task
-  , editText    :: String
-  , filter      :: Filter
+  { tasks        :: List Task
+  , editText     :: String
+  , editQuantity :: String
+  , filter       :: Filter
   }
+
+traflisa     = { description: "SKU001Träflisa",     completed: false, quantity: 100 }
+skruvdragare = { description: "SKU002Skruvdragare", completed: false, quantity: 10 }
 
 initialTaskListState :: TaskListState
 initialTaskListState =
-  { tasks: Nil
+  { --tasks: Nil
+    tasks: toList [traflisa, skruvdragare]
   , editText: ""
+  , editQuantity: "0"
   , filter: All
   }
 
@@ -79,8 +88,8 @@ taskList = container $ fold
     where
     render :: T.Render TaskListState props TaskListAction
     render dispatch _ s _ =
-      [ R.h1' [ R.text "todo list" ]
-      , R.div [ RP.className "btn-group" ] (map filter_ [ All, Active, Completed ])
+      [ R.h1' [ R.text "Sortiment" ]
+      --, R.div [ RP.className "btn-group" ] (map filter_ [ All, Active, Completed ])
       ]
       where
       filter_ :: Filter -> R.ReactElement
@@ -113,19 +122,31 @@ taskList = container $ fold
         handleKeyPress 13 text = dispatch $ NewTask text
         handleKeyPress 27 _    = dispatch $ SetEditText ""
         handleKeyPress _  _    = pure unit
+        handleKeyPres :: Int -> String -> _
+        handleKeyPres 13 text = dispatch $ NewTask text
+        handleKeyPres 27 _    = dispatch $ SetEditQuantity ""
+        handleKeyPres _  _    = pure unit
     in [ R.table [ RP.className "table table-striped" ]
                  [ R.thead' [ R.th [ RP.className "col-md-1"  ] []
-                            , R.th [ RP.className "col-md-10" ] [ R.text "Description" ]
+                            , R.th [ RP.className "col-md-5" ] [ R.text "Artikel" ]
+                            , R.th [ RP.className "col-md-5" ] [ R.text "Antal" ]
                             , R.th [ RP.className "col-md-1"  ] []
                             ]
                  , R.tbody' $ [ R.tr' [ R.td' []
                                       , R.td' [ R.input [ RP.className "form-control"
-                                                        , RP.placeholder "Create a new task"
+                                                        , RP.placeholder "ny beskrivning"
                                                         , RP.value s.editText
                                                         , RP.onKeyUp \e -> handleKeyPress (unsafeCoerce e).keyCode (unsafeCoerce e).target.value
                                                         , RP.onChange \e -> dispatch (SetEditText (unsafeCoerce e).target.value)
                                                         ] []
-                                              ]
+                                          ]
+                                      , R.td' [ R.input [ RP.className "form-control"
+                                                        , RP.placeholder "nytt antal"
+                                                        , RP.value s.editQuantity
+                                                        , RP.onKeyUp \e -> handleKeyPres (unsafeCoerce e).keyCode (unsafeCoerce e).target.value
+                                                        , RP.onChange \e -> dispatch (SetEditQuantity (unsafeCoerce e).target.value)
+                                                        ] []
+                                          ]
                                       , R.td' []
                                       ]
                               ] <> render dispatch p s c
@@ -137,7 +158,8 @@ taskList = container $ fold
   footer :: forall action. T.Spec eff TaskListState props action
   footer = T.simpleSpec T.defaultPerformAction \_ _ s _ ->
     let
-      footerText = show completed ++ "/" ++ show total ++ " tasks completed."
+      --footerText = show completed ++ "/" ++ show total ++ " uppgifter klara."
+      footerText = "Visar " <> show total <> " artiklar."
       completed  = length $ filter _.completed s.tasks
       total      = length s.tasks
     in [ R.p' [ R.text footerText ] ]
@@ -149,5 +171,6 @@ taskList = container $ fold
     performAction :: T.PerformAction eff TaskListState props TaskListAction
     performAction (TaskAction i RemoveTask) _ state k = k $ state { tasks = fromMaybe state.tasks (deleteAt i state.tasks) }
     performAction (SetEditText s)           _ state k = k $ state { editText = s }
+    performAction (SetEditQuantity s)       _ state k = k $ state { editQuantity = s }
     performAction (SetFilter f)             _ state k = k $ state { filter = f }
     performAction _ _ _ _ = pure unit

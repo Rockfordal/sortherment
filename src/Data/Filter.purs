@@ -12,6 +12,6 @@ instance eqFilter :: Eq Filter where
   eq _         _         = false
 
 showFilter :: Filter -> String
-showFilter All = "All"
-showFilter Active = "Active"
-showFilter Completed = "Completed"
+showFilter All = "Alla"
+showFilter Active = "Aktiva"
+showFilter Completed = "Utförda"

@@ -17,11 +17,12 @@ data TaskAction
 -- | The state for the task component
 type Task =
   { completed :: Boolean
-    , description :: String
+  , description :: String
+  , quantity :: Int
   }
 
 initialTask :: String -> Task
-initialTask s = { completed: false, description: s }
+initialTask s = { completed: false, description: s, quantity: 1 }
 
 -- | A `Spec` for the task component.
 taskSpec :: forall eff props. T.Spec eff Task props TaskAction
@@ -34,12 +35,13 @@ taskSpec = T.simpleSpec performAction render
         [ R.input [ RP._type "checkbox"
                   , RP.className "checkbox"
                   , RP.checked (if s.completed then "checked" else "")
-                  , RP.title "Mark as completed"
+                  , RP.title "Markera som klar"
                   , RP.onChange \e -> dispatch (ChangeCompleted (unsafeCoerce e).target.checked)
                   ] []
         , R.text s.description
+        , R.text $ show s.quantity
         , R.a [ RP.className "btn btn-danger pull-right"
-              , RP.title "Remove item"
+              , RP.title "Ta bort"
               , RP.onClick \_ -> dispatch RemoveTask
               ]
               [ R.text "✖" ]
