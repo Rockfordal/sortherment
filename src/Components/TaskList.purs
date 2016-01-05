@@ -23,8 +23,8 @@ type NyTask = Tuple String String
 
 -- | An action for the full task list component
 data TaskListAction
-  = NewTask String
-  -- = NewTask NyTask
+  = NewTask NyTask
+  | ClearInput
   | SetEditText String
   | SetEditQuantity String
   | SetFilter Filter
@@ -45,13 +45,12 @@ type TaskListState =
   , filter       :: Filter
   }
 
-traflisa     = { description: "SKU001Träflisa",     completed: false, quantity: 100 }
-skruvdragare = { description: "SKU002Skruvdragare", completed: false, quantity: 10 }
+traflisa     = { description: "SKU001Träflisa",     completed: false, quantity: "100" }
+skruvdragare = { description: "SKU002Skruvdragare", completed: false, quantity: "10" }
 
 initialTaskListState :: TaskListState
 initialTaskListState =
-  { --tasks: Nil
-    tasks: toList [traflisa, skruvdragare]
+  { tasks: toList [traflisa, skruvdragare] -- Nil
   , editText: ""
   , editQuantity: "0"
   , filter: All
@@ -72,7 +71,7 @@ taskList = container $ fold
   [ header
   , table $ T.withState \st ->
       T.focus _tasks _TaskAction $
-        T.foreach \_ -> applyFilter st.filter taskSpec
+      T.foreach \_ -> applyFilter st.filter taskSpec
   , footer
   , listActions
   ]
@@ -101,7 +100,7 @@ taskList = container $ fold
     -- The `NewTask` action is handled here
     -- Everything else is handled by some other child component so is ignored here.
     performAction :: T.PerformAction eff TaskListState props TaskListAction
-    performAction (NewTask s) _ state k = k $ state { tasks = Cons (initialTask s) state.tasks }
+    performAction (NewTask s) _ state k = k $ state { tasks = Cons (initialTask s) state.tasks, editText = "", editQuantity = "" }
     performAction _ _ _ _ = pure unit
 
   -- This function wraps a `Spec`'s `Render` function to filter out tasks.
@@ -118,32 +117,32 @@ taskList = container $ fold
   -- This function wraps a `Spec`'s `Render` function in a table with the correct row headers.
   table :: forall props eff. T.Spec eff TaskListState props TaskListAction -> T.Spec eff TaskListState props TaskListAction
   table = over T._render \render dispatch p s c ->
-    let handleKeyPress :: Int -> String -> _
-        handleKeyPress 13 text = dispatch $ NewTask text
-        handleKeyPress 27 _    = dispatch $ SetEditText ""
-        handleKeyPress _  _    = pure unit
-        handleKeyPres :: Int -> String -> _
-        handleKeyPres 13 text = dispatch $ NewTask text
-        handleKeyPres 27 _    = dispatch $ SetEditQuantity ""
-        handleKeyPres _  _    = pure unit
+    let handleKeyPress :: Int -> String -> String -> _
+        handleKeyPress 13 text quan = dispatch $ NewTask $ Tuple text quan
+        handleKeyPress 27 _ _       = dispatch $ ClearInput -- SetEditQuantity ""
+        handleKeyPress _  _ _       = pure unit
+        handleKeyPres :: Int -> String -> String -> _
+        handleKeyPres 13 quan text = dispatch $ NewTask $ Tuple text quan
+        handleKeyPres 27 _ _       = dispatch $ ClearInput
+        handleKeyPres _  _ _       = pure unit
     in [ R.table [ RP.className "table table-striped" ]
-                 [ R.thead' [ R.th [ RP.className "col-md-1"  ] []
+                 [ R.thead' [ R.th [ RP.className "col-md-1" ] []
                             , R.th [ RP.className "col-md-5" ] [ R.text "Artikel" ]
                             , R.th [ RP.className "col-md-5" ] [ R.text "Antal" ]
-                            , R.th [ RP.className "col-md-1"  ] []
+                            , R.th [ RP.className "col-md-1" ] []
                             ]
                  , R.tbody' $ [ R.tr' [ R.td' []
                                       , R.td' [ R.input [ RP.className "form-control"
                                                         , RP.placeholder "ny beskrivning"
                                                         , RP.value s.editText
-                                                        , RP.onKeyUp \e -> handleKeyPress (unsafeCoerce e).keyCode (unsafeCoerce e).target.value
+                                                        , RP.onKeyUp \e -> handleKeyPress (unsafeCoerce e).keyCode (unsafeCoerce e).target.value s.editQuantity
                                                         , RP.onChange \e -> dispatch (SetEditText (unsafeCoerce e).target.value)
                                                         ] []
                                           ]
                                       , R.td' [ R.input [ RP.className "form-control"
                                                         , RP.placeholder "nytt antal"
                                                         , RP.value s.editQuantity
-                                                        , RP.onKeyUp \e -> handleKeyPres (unsafeCoerce e).keyCode (unsafeCoerce e).target.value
+                                                        , RP.onKeyUp \e -> handleKeyPres (unsafeCoerce e).keyCode (unsafeCoerce e).target.value s.editText
                                                         , RP.onChange \e -> dispatch (SetEditQuantity (unsafeCoerce e).target.value)
                                                         ] []
                                           ]
@@ -170,6 +169,7 @@ taskList = container $ fold
     where
     performAction :: T.PerformAction eff TaskListState props TaskListAction
     performAction (TaskAction i RemoveTask) _ state k = k $ state { tasks = fromMaybe state.tasks (deleteAt i state.tasks) }
+    performAction (ClearInput)              _ state k = k $ state { editText = "", editQuantity = ""}
     performAction (SetEditText s)           _ state k = k $ state { editText = s }
     performAction (SetEditQuantity s)       _ state k = k $ state { editQuantity = s }
     performAction (SetFilter f)             _ state k = k $ state { filter = f }

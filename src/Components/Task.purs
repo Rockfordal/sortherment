@@ -2,8 +2,8 @@ module Components.Task where
 
 import Prelude
 
+import Data.Tuple
 import qualified Thermite as T
-
 import qualified React.DOM as R
 import qualified React.DOM.Props as RP
 
@@ -18,11 +18,11 @@ data TaskAction
 type Task =
   { completed :: Boolean
   , description :: String
-  , quantity :: Int
+  , quantity :: String
   }
 
-initialTask :: String -> Task
-initialTask s = { completed: false, description: s, quantity: 1 }
+initialTask :: Tuple String String -> Task
+initialTask s = { completed: false, description: fst s, quantity: snd s }
 
 -- | A `Spec` for the task component.
 taskSpec :: forall eff props. T.Spec eff Task props TaskAction
